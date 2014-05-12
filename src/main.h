@@ -13,7 +13,6 @@
 #include <bass.h>
 #include "atlstr.h"
 
-#define DATA_BUFSIZE		1024
 #define FREQ				44100
 #define CHANS				2
 #define BUFSTEP				200000	// memory allocation unit
@@ -22,27 +21,17 @@
 #define TIMEOUT_TIME_UDP	3000
 #define TIMECAST_TTL		2
 #define TIMECAST_INTRVL		7
-#define BUFFER_SIZE 2048
-#define CHUNK_SIZE 1024
-#define FREQUENCY 120
+#define BUFFER_SIZE			1024
+#define FREQUENCY			44100
 
 typedef struct _SOCKET_INFORMATION
 {
 	WSAOVERLAPPED Overlapped;
-	CHAR Buffer[DATA_BUFSIZE];
 	WSABUF DataBuf;
 	SOCKET Socket;
-	DWORD BytesSEND;
-	DWORD BytesRECV;
 	SOCKADDR_IN SenderAddr;
 	SOCKADDR_IN DestAddr;
-	int pktsRcvd;
 } SOCKET_INFORMATION, * LPSOCKET_INFORMATION;
-
-/*typedef struct {
-	char* fileName;
-	FILE* pfile;
-} InfoFile;*/
 
 
 /* 
@@ -50,22 +39,20 @@ typedef struct _SOCKET_INFORMATION
 */
 void run_server();
 int init_server(char* result, int port);
-void record();
+void recordMic();
 void play(char *filename);
 void stop(char *filename);
 void pause(char *filename);
-void playPause(char *filename);
-BOOL InitDevice(int device);
-BOOL CALLBACK RecordingCallback(HRECORD handle, const void *buffer, DWORD length, void *user);
-void StartRecording();
-void StopRecording();
+BOOL InitMicDevice(int device);
+BOOL CALLBACK MicrophoneCallback(HRECORD handle, const void *buffer, DWORD length, void *user);
+BOOL CALLBACK MicCallback(HRECORD handle, const void *buffer, DWORD length, void *user);
 
-DWORD WINAPI PlayThread(LPVOID params);
-DWORD WINAPI PlayerThread(LPVOID params);
+DWORD WINAPI RecordThread(LPVOID params);
 
-DWORD WINAPI UDPWorkerThread(LPVOID lpParameter);
-VOID CALLBACK UDPWorkerRoutine(DWORD Error, DWORD BytesTransferred, LPWSAOVERLAPPED Overlapped, DWORD InFlags);
 int multicast_connect(System::Windows::Forms::ListBox ^lb, char* ip, int port);
-void run_client(System::Windows::Forms::ListBox ^lb);
+void run_client(char *fileName);
+void resume();
+void pauseSong();
+void volumeChange(float val);
 
 #endif

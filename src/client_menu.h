@@ -22,6 +22,14 @@ namespace TCPIP
 	public ref class client_menu : public System::Windows::Forms::Form
 	{
 		HWND hwnd;
+		float val;
+	private: System::Windows::Forms::Button^  button2;
+
+	private: System::ComponentModel::BackgroundWorker^  backgroundWorker1;
+	private: System::Windows::Forms::Button^  button3;
+	private: System::Windows::Forms::Button^  pause;
+	private: System::Windows::Forms::TrackBar^  trackBar1;
+	private: System::Windows::Forms::Label^  label1;
 	public:
 		String^ errMsg;
 		client_menu(void)
@@ -100,6 +108,13 @@ namespace TCPIP
 			this->SaveAsLabel = (gcnew System::Windows::Forms::Label());
 			this->SaveAsTextBox = (gcnew System::Windows::Forms::TextBox());
 			this->backgroundWorker = (gcnew System::ComponentModel::BackgroundWorker());
+			this->button2 = (gcnew System::Windows::Forms::Button());
+			this->backgroundWorker1 = (gcnew System::ComponentModel::BackgroundWorker());
+			this->button3 = (gcnew System::Windows::Forms::Button());
+			this->pause = (gcnew System::Windows::Forms::Button());
+			this->trackBar1 = (gcnew System::Windows::Forms::TrackBar());
+			this->label1 = (gcnew System::Windows::Forms::Label());
+			(cli::safe_cast<System::ComponentModel::ISupportInitialize^  >(this->trackBar1))->BeginInit();
 			this->SuspendLayout();
 			// 
 			// ConnectButton
@@ -156,7 +171,7 @@ namespace TCPIP
 			// 
 			// DisconnectButton
 			// 
-			this->DisconnectButton->Location = System::Drawing::Point(306, 147);
+			this->DisconnectButton->Location = System::Drawing::Point(306, 242);
 			this->DisconnectButton->Name = L"DisconnectButton";
 			this->DisconnectButton->Size = System::Drawing::Size(75, 23);
 			this->DisconnectButton->TabIndex = 14;
@@ -178,17 +193,18 @@ namespace TCPIP
 			// button1
 			// 
 			this->button1->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->button1->Location = System::Drawing::Point(360, 121);
+			this->button1->Location = System::Drawing::Point(360, 216);
 			this->button1->Name = L"button1";
 			this->button1->Size = System::Drawing::Size(21, 20);
 			this->button1->TabIndex = 18;
 			this->button1->Text = L"..";
 			this->button1->UseVisualStyleBackColor = true;
+			this->button1->Click += gcnew System::EventHandler(this, &client_menu::button1_Click);
 			// 
 			// SaveAsLabel
 			// 
 			this->SaveAsLabel->AutoSize = true;
-			this->SaveAsLabel->Location = System::Drawing::Point(9, 124);
+			this->SaveAsLabel->Location = System::Drawing::Point(9, 219);
 			this->SaveAsLabel->Name = L"SaveAsLabel";
 			this->SaveAsLabel->Size = System::Drawing::Size(49, 13);
 			this->SaveAsLabel->TabIndex = 17;
@@ -196,7 +212,7 @@ namespace TCPIP
 			// 
 			// SaveAsTextBox
 			// 
-			this->SaveAsTextBox->Location = System::Drawing::Point(64, 121);
+			this->SaveAsTextBox->Location = System::Drawing::Point(64, 216);
 			this->SaveAsTextBox->Name = L"SaveAsTextBox";
 			this->SaveAsTextBox->Size = System::Drawing::Size(317, 20);
 			this->SaveAsTextBox->TabIndex = 16;
@@ -206,11 +222,68 @@ namespace TCPIP
 			this->backgroundWorker->WorkerSupportsCancellation = true;
 			this->backgroundWorker->DoWork += gcnew System::ComponentModel::DoWorkEventHandler(this, &client_menu::backgroundWorker_DoWork);
 			// 
+			// button2
+			// 
+			this->button2->Location = System::Drawing::Point(64, 242);
+			this->button2->Name = L"button2";
+			this->button2->Size = System::Drawing::Size(75, 23);
+			this->button2->TabIndex = 19;
+			this->button2->Text = L"Talk";
+			this->button2->UseVisualStyleBackColor = true;
+			this->button2->Click += gcnew System::EventHandler(this, &client_menu::micTalk);
+			// 
+			// backgroundWorker1
+			// 
+			this->backgroundWorker1->WorkerSupportsCancellation = true;
+			this->backgroundWorker1->DoWork += gcnew System::ComponentModel::DoWorkEventHandler(this, &client_menu::backgroundWorker1_DoWork);
+			// 
+			// button3
+			// 
+			this->button3->Location = System::Drawing::Point(248, 167);
+			this->button3->Name = L"button3";
+			this->button3->Size = System::Drawing::Size(133, 39);
+			this->button3->TabIndex = 20;
+			this->button3->Text = L"resume";
+			this->button3->UseVisualStyleBackColor = true;
+			this->button3->Click += gcnew System::EventHandler(this, &client_menu::resumeButton);
+			// 
+			// pause
+			// 
+			this->pause->Location = System::Drawing::Point(64, 167);
+			this->pause->Name = L"pause";
+			this->pause->Size = System::Drawing::Size(135, 39);
+			this->pause->TabIndex = 21;
+			this->pause->Text = L"pause";
+			this->pause->UseVisualStyleBackColor = true;
+			this->pause->Click += gcnew System::EventHandler(this, &client_menu::pauseButton);
+			// 
+			// trackBar1
+			// 
+			this->trackBar1->Location = System::Drawing::Point(64, 120);
+			this->trackBar1->Name = L"trackBar1";
+			this->trackBar1->Size = System::Drawing::Size(317, 45);
+			this->trackBar1->TabIndex = 22;
+			this->trackBar1->Scroll += gcnew System::EventHandler(this, &client_menu::volume);
+			// 
+			// label1
+			// 
+			this->label1->AutoSize = true;
+			this->label1->Location = System::Drawing::Point(13, 125);
+			this->label1->Name = L"label1";
+			this->label1->Size = System::Drawing::Size(45, 13);
+			this->label1->TabIndex = 23;
+			this->label1->Text = L"Volume:";
+			// 
 			// client_menu
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-			this->ClientSize = System::Drawing::Size(398, 185);
+			this->ClientSize = System::Drawing::Size(398, 278);
+			this->Controls->Add(this->label1);
+			this->Controls->Add(this->trackBar1);
+			this->Controls->Add(this->pause);
+			this->Controls->Add(this->button3);
+			this->Controls->Add(this->button2);
 			this->Controls->Add(this->button1);
 			this->Controls->Add(this->SaveAsLabel);
 			this->Controls->Add(this->SaveAsTextBox);
@@ -225,30 +298,23 @@ namespace TCPIP
 			this->Name = L"client_menu";
 			this->Text = L"client_menu";
 			this->FormClosing += gcnew System::Windows::Forms::FormClosingEventHandler(this, &client_menu::client_menu_FormClosing);
+			(cli::safe_cast<System::ComponentModel::ISupportInitialize^  >(this->trackBar1))->EndInit();
 			this->ResumeLayout(false);
 			this->PerformLayout();
 
 		}
 #pragma endregion
-	private: System::Void FileDirButton_Click(System::Object^  sender, System::EventArgs^  e) 
-			 {
-				 saveFileDialog1->Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*";
 
-				 saveFileDialog1->FilterIndex = 2;
-				 saveFileDialog1->RestoreDirectory = true;
-				 saveFileDialog1->ShowDialog();
-
-				 SaveAsTextBox->Text = saveFileDialog1->FileName;
-			 }
 	private: System::Void ConnectButton_Click(System::Object^  sender, System::EventArgs^  e) 
 			 {
+				 this->button1->Enabled = false;
+				 this->SaveAsTextBox->Enabled = false;
 				 backgroundWorker->RunWorkerAsync();
 			 }
 
 	private: System::Void DisconnectButton_Click(System::Object^  sender, System::EventArgs^  e) 
 			 {
 				 this->backgroundWorker->CancelAsync();
-				 //multicast_disconnect();
 			 }
 	private: System::Void ClearButton_Click(System::Object^  sender, System::EventArgs^  e) 
 			 {
@@ -263,9 +329,11 @@ namespace TCPIP
 	private: System::Void backgroundWorker_DoWork(System::Object^  sender, System::ComponentModel::DoWorkEventArgs^  e) 
 			 {
 				 int port = 0;
+				 char *fileName;
 				 char ip[32]= "";
 
 				 pin_ptr<const wchar_t> tempIP;
+				 pin_ptr<const wchar_t> tempFileName;
 
 				 tempIP = PtrToStringChars(this->IPTextBox->Text);
 				 if(PortTextBox->Text != "")
@@ -273,10 +341,42 @@ namespace TCPIP
 
 				 wcstombs_s(0, ip, wcslen(tempIP) + 1, tempIP, _TRUNCATE);
 
+				 if(SaveAsTextBox->Text != "")
+				 {
+					 tempFileName = PtrToStringChars(this->SaveAsTextBox->Text);
+					 fileName = (char*) malloc(sizeof(tempFileName));
+					 wcstombs_s(0, fileName, wcslen(tempFileName) + 1, tempFileName, _TRUNCATE);
+				 }
+
 				 multicast_connect(outputListBox, ip, port);
-				 run_client(outputListBox);
+				 run_client(fileName);
 			 }
 
+private: System::Void micTalk(System::Object^  sender, System::EventArgs^  e) {
+			 
+				 backgroundWorker1->RunWorkerAsync();
+		 }
+private: System::Void backgroundWorker1_DoWork(System::Object^  sender, System::ComponentModel::DoWorkEventArgs^  e) {
+			  recordMic();
+		 }
+private: System::Void button1_Click(System::Object^  sender, System::EventArgs^  e) {
+			 saveFileDialog1->Filter = "WAV files (*.wav)|*.wav";
+
+				 saveFileDialog1->RestoreDirectory = true;
+				 saveFileDialog1->ShowDialog();
+
+				 SaveAsTextBox->Text = saveFileDialog1->FileName;
+		 }
+private: System::Void pauseButton(System::Object^  sender, System::EventArgs^  e) {
+			 pauseSong();
+		 }
+private: System::Void resumeButton(System::Object^  sender, System::EventArgs^  e) {
+			 resume();
+		 }
+private: System::Void volume(System::Object^  sender, System::EventArgs^  e) {
+			 val = this->trackBar1->Value;
+			 volumeChange(val);
+		 }
 };
 }
 

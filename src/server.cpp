@@ -1,22 +1,17 @@
 #include "server_menu.h"
 
-HWND ghwnd;
 LPSOCKET_INFORMATION server_SocketInfo;
 u_long  lTTL               = TIMECAST_TTL;
-BASS_CHANNELINFO info;
-WAVEFORMATEX wf;
-HRECORD rec;
-DWORD chan, rchan, reclen, p;
-DWORD outStream;
+DWORD chan, reclen;
 BOOL _recording;
-char *recbuf=NULL;
-short buf[1024];
+char *recbuf = NULL;
 int input;
-DWORD outdev[2];	// output devices
-DWORD latency[2];	// latencies
-int stream;
-FILE *fp;
-HANDLE sendEvent;
+char* globalIP;
+int globalPort;
+
+char GlobalMicBuffer[BUFFER_SIZE]  = "";
+int	 GlobalMicBufferIndex	 = 0;
+
 
 /*------------------------------------------------------------------------------------------------------------------
 -- FUNCTION: init_server
@@ -48,7 +43,8 @@ int init_server(char* ipAddress, int port){
 	struct ip_mreq stMreq;        /* Multicast interface structure */
 	CreateEvent(NULL, FALSE, TRUE, NULL);
 	WSAStartup(0x0202, &stWSAData);
-
+	globalIP	= ipAddress;
+	globalPort	= port;
 	if ((server_SocketInfo = (LPSOCKET_INFORMATION) GlobalAlloc(GPTR, sizeof(SOCKET_INFORMATION))) == NULL){
 		System::Windows::Forms::MessageBox::Show("GlobalAlloc Error: " + WSAGetLastError());
 		return -1;
@@ -90,8 +86,7 @@ int init_server(char* ipAddress, int port){
 
 	/* Disable loopback */
 	fFlag = FALSE;
-	nRet = setsockopt(server_SocketInfo->Socket, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&fFlag, sizeof(fFlag));
-	if (nRet == SOCKET_ERROR) {
+	if ((nRet = setsockopt(server_SocketInfo->Socket, IPPROTO_IP, IP_MULTICAST_LOOP, (char *)&fFlag, sizeof(fFlag)) == SOCKET_ERROR)) {
 		System::Windows::Forms::MessageBox::Show("setsockopt() IP_MULTICAST_LOOP failed. Error: " + WSAGetLastError());
 		return -1;
 	}
@@ -104,28 +99,8 @@ int init_server(char* ipAddress, int port){
 	return 0;
 }
 
-void run_server(){
-	DWORD Flags = 0;
-	char streamDataBuffer[BUFFER_SIZE];
-
-	while(1){
-		if(BASS_ChannelIsActive(chan) == BASS_ACTIVE_PLAYING ){
-			DWORD readLength =	BASS_ChannelGetData(chan, streamDataBuffer, BUFFER_SIZE);
-			server_SocketInfo->DataBuf.buf = (CHAR*)streamDataBuffer;
-			server_SocketInfo->DataBuf.len = readLength;
-			if(sendto(server_SocketInfo->Socket, (char*)streamDataBuffer, server_SocketInfo->DataBuf.len, Flags, (struct sockaddr*)&(server_SocketInfo->DestAddr), sizeof(server_SocketInfo->DestAddr)) == SOCKET_ERROR){
-				if (WSAGetLastError() != WSA_IO_PENDING){
-					System::Windows::Forms::MessageBox::Show("sendto error. Error: " + WSAGetLastError());
-					return;
-				}
-			}
-		}
-	}
-
-}
-
 /*------------------------------------------------------------------------------------------------------------------
--- FUNCTION: play
+-- FUNCTION: run_server
 --
 -- DATE: April 02, 2014
 --
@@ -136,13 +111,39 @@ void run_server(){
 --
 -- PROGRAMMER:  Damien Sathanielle/Mat Siwoski
 --
--- INTERFACE:void play(char *filename)
---				char* filename: filename path of the song
+-- INTERFACE:  void run_server()
 --
--- RETURNS: Returns 0 upon success
+-- RETURNS: -
 --
--- NOTES:
--- This will create a stream of the file and play the file.
+-- NOTES:  While the server is running, it constantly checks the stream 'chan' to see if it is active. If the
+--         channel is recording or playing audio, the server will get data from the channel and stream it via
+--         multicast.
+------------------------------------------------------------------------------------------------------------------*/
+void run_server(){
+	DWORD Flags = 0, readLength = 0;
+	char streamDataBuffer[BUFFER_SIZE];
+
+	while(1){
+		/* if audio is being played or recorded */
+		if(BASS_ChannelIsActive(chan) == BASS_ACTIVE_PLAYING ){
+			if(( readLength =BASS_ChannelGetData(chan, streamDataBuffer, BUFFER_SIZE)) == -1){
+				System::Windows::Forms::MessageBox::Show("Channel is empty. Error: " + BASS_ErrorGetCode());
+					return;
+			} 
+
+			if(sendto(server_SocketInfo->Socket, (char*)streamDataBuffer, readLength, Flags, (struct sockaddr*)&(server_SocketInfo->DestAddr), sizeof(server_SocketInfo->DestAddr)) == SOCKET_ERROR){
+				if (WSAGetLastError() != WSA_IO_PENDING){
+					System::Windows::Forms::MessageBox::Show("sendto error. Error: " + WSAGetLastError());
+					return;
+				}
+			}
+		}
+	}
+}
+
+/*------------------------------------------------------------------------------------------------------------------
+-- If a file is specified, a stream is created and played. The BASS_STREAM_DECODE flag is set to be able to get
+-- data from the channel while it is playing.
 ------------------------------------------------------------------------------------------------------------------*/
 void play(char *filename)
 {
@@ -150,146 +151,31 @@ void play(char *filename)
 	{
 		chan = BASS_StreamCreateFile(FALSE,filename,0,0,BASS_STREAM_DECODE);
 		BASS_ChannelPlay(chan, FALSE);
-	}else
-		BASS_ChannelPlay(chan, FALSE);
+	}
 }
 
+/*------------------------------------------------------------------------------------------------------------------
+-- If the channel is valid, it is stopped. This will stop the playing of audio resetting the position of the
+-- channel.
+------------------------------------------------------------------------------------------------------------------*/
 void stop(char *filename)
 {
 	if (filename!=NULL && chan != NULL)
 	{
-		BASS_ChannelStop(chan); // stop the music
+		/* stop the music */
+		BASS_ChannelStop(chan);
 	}
 }
 
+/*------------------------------------------------------------------------------------------------------------------
+-- If the channel is valid, it is paused. This will stop the playing of audio saving the position of the
+-- channel to optionaly resume later.
+------------------------------------------------------------------------------------------------------------------*/
 void pause(char *filename){
 	if (filename!=NULL && chan != NULL)
 	{
-		BASS_ChannelPause(chan);	//pause the music
+		/* pause the music */
+		BASS_ChannelPause(chan);
 	}
 }
 
-void playPause(char *filename){
-	if (filename!=NULL && chan != NULL)
-	{
-		BASS_ChannelPlay(chan, FALSE); // play the stream (continue from current position)
-	}
-}
-
-void record()
-{
-	if(!_recording)
-	{
-		InitDevice(-1);
-		StartRecording();
-	}else
-		StopRecording();
-}
-
-DWORD WINAPI PlayThread(LPVOID params){
-	while(1){
-		Sleep(1000);
-		SetEvent(sendEvent);
-	}
-}
-
-
-BOOL InitDevice(int device)
-{
-	BASS_RecordFree(); // free current device (and recording channel) if there is one
-	// initalize new device
-	if (!BASS_RecordInit(device)) {
-		//Error("Can't initialize recording device");
-		return FALSE;
-	}
-	{ // get list of inputs
-		int c;
-		const char *i;
-		for (c=0;i=BASS_RecordGetInputName(c);c++) {
-			if (!(BASS_RecordGetInput(c,NULL)&BASS_INPUT_OFF)) { // this one is currently "on"
-				input=c;
-			}
-		}
-	}
-	return TRUE;
-}
-
-// buffer the recorded data
-BOOL CALLBACK RecordingCallback(HRECORD handle, const void *buffer, DWORD length, void *user)
-{
-
-	BASS_StreamPutData(outStream, buffer, length);
-	// increase buffer size if needed
-	if ((reclen%BUFSTEP)+length>=BUFSTEP) {
-		recbuf=(char*)realloc(recbuf,((reclen+length)/BUFSTEP+1)*BUFSTEP);
-		if (!recbuf) {
-			rchan=0;
-			//Error("Out of memory!");
-			//MESS(10,WM_SETTEXT,0,"Record");
-			return FALSE; // stop recording
-		}
-	}
-	// buffer the data
-	memcpy(recbuf+reclen,buffer,length);
-	reclen+=length;
-	return TRUE; // continue recording
-}
-
-void StartRecording()
-{
-	WAVEFORMATEX *wf;
-
-	_recording = true;
-
-	outStream = BASS_StreamCreate(44100, 2, 0, STREAMPROC_PUSH, 0);
-
-	if (recbuf) { // free old recording
-		BASS_StreamFree(chan);
-		chan=0;
-		free(recbuf);
-		recbuf=NULL;
-		//EnableWindow(DLGITEM(11),FALSE);
-		//EnableWindow(DLGITEM(12),FALSE);
-		// close output device before recording incase of half-duplex device
-		BASS_Free();
-	}
-	// allocate initial buffer and make space for WAVE header
-	recbuf=(char*)malloc(BUFSTEP);
-	reclen=44;
-	// fill the WAVE header
-	memcpy(recbuf,"RIFF\0\0\0\0WAVEfmt \20\0\0\0",20);
-	memcpy(recbuf+36,"data\0\0\0\0",8);
-	wf=(WAVEFORMATEX*)(recbuf+20);
-	wf->wFormatTag=1;
-	wf->nChannels=CHANS;
-	wf->wBitsPerSample=16;
-	wf->nSamplesPerSec=FREQ;
-	wf->nBlockAlign=wf->nChannels*wf->wBitsPerSample/8;
-	wf->nAvgBytesPerSec=wf->nSamplesPerSec*wf->nBlockAlign;
-	// start recording
-	rchan=BASS_RecordStart(FREQ,CHANS,0,RecordingCallback,0);
-	if (!rchan) {
-		//Error("Couldn't start recording");
-		free(recbuf);
-		recbuf=0;
-		return;
-	}
-}
-
-void StopRecording()
-{
-	_recording = false;
-
-	BASS_ChannelStop(rchan);
-	rchan=0;
-
-	// complete the WAVE header
-	*(DWORD*)(recbuf+4)=reclen-8;
-	*(DWORD*)(recbuf+40)=reclen-44;
-
-	// create a stream from the recording
-	if (chan=BASS_StreamCreateFile(TRUE,recbuf,0,reclen,BASS_STREAM_DECODE))
-		printf("sfd");
-	else 
-		BASS_Free();
-}

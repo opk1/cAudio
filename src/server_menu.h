@@ -276,16 +276,7 @@ namespace TCPIP {
 			// 
 			this->backgroundWorker1->WorkerSupportsCancellation = true;
 			this->backgroundWorker1->DoWork += gcnew System::ComponentModel::DoWorkEventHandler(this, &server_menu::backgroundWorker1_DoWork);
-			// 
-			// button1
-			// 
-			this->button1->Location = System::Drawing::Point(72, 107);
-			this->button1->Name = L"button1";
-			this->button1->Size = System::Drawing::Size(56, 23);
-			this->button1->TabIndex = 18;
-			this->button1->Text = L"Record";
-			this->button1->UseVisualStyleBackColor = true;
-			this->button1->Click += gcnew System::EventHandler(this, &server_menu::button1_Click);
+
 			// 
 			// label1
 			// 
@@ -311,7 +302,6 @@ namespace TCPIP {
 			this->ClientSize = System::Drawing::Size(373, 436);
 			this->Controls->Add(this->ipAddressTextBox);
 			this->Controls->Add(this->label1);
-			this->Controls->Add(this->button1);
 			this->Controls->Add(this->FileDirButton);
 			this->Controls->Add(this->pauseButton);
 			this->Controls->Add(this->stopButton);
@@ -348,9 +338,7 @@ namespace TCPIP {
 			 }
 	private: System::Void backgroundWorker_DoWork(System::Object^  sender, System::ComponentModel::DoWorkEventArgs^  e) 
 			 {
-				 int port = 0;
-				 String^ errMsg		= gcnew String("error");
-				 pin_ptr<const wchar_t> tempFileName;
+				 int port;
 				 char* result;
 
 
@@ -360,13 +348,6 @@ namespace TCPIP {
 				if ((ipAddress = (System::String^) ipAddressTextBox->Text) != ""){
 					result = (char*)(void*)System::Runtime::InteropServices::Marshal::StringToHGlobalAnsi(ipAddress);
 				}
-
-				 /*if (!BASS_Init(-1,44100,0,hwnd,NULL))
-				 {
-				 errMsg = "Can't initialize device";
-				 MessageBox::Show(errMsg);
-				 return;
-				 }*/
 
 				 init_server(result,port);
 				 run_server();
@@ -379,8 +360,6 @@ namespace TCPIP {
 				 this->PortTextBox->Enabled = true;
 				 this->ListenButton->Enabled = true;
 				 this->CloseButton->Enabled = false;
-
-				 //close_socket();
 			 }
 	private: System::Void server_menu_FormClosing(System::Object^  sender, System::Windows::Forms::FormClosingEventArgs^  e) 
 			 {
@@ -427,9 +406,6 @@ namespace TCPIP {
 					 errMsg				= "Can't Create Stream File";
 					 pause(fileName);
 					 this->pauseButton->Text = L"Continue";
-				 }else{
-					 this->pauseButton->Text = L"Pause";
-					 playPause(fileName);
 				 }
 
 			 }
@@ -443,7 +419,6 @@ namespace TCPIP {
 				 char *fileName;
 				 pin_ptr<const wchar_t> tempFileName;
 
-				 i= 1;
 				 if(FileTextBox->Text != "")
 				 {
 					 tempFileName = PtrToStringChars(this->FileTextBox->Text);
@@ -453,11 +428,7 @@ namespace TCPIP {
 				 play(fileName);
 
 			 }
-	private: System::Void button1_Click(System::Object^  sender, System::EventArgs^  e) 
-			 {
 
-				 record();
-			 }
 };
 }
 
